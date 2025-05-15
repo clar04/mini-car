@@ -1,184 +1,147 @@
 #include <Bluepad32.h>
-#include <Arduino.h>
 
-// Motor control pins for MX1508
-#define MOTOR_A_IN1 12  // Define pins for Motor A
+// Motor Pins
+#define MOTOR_A_IN1 12
 #define MOTOR_A_IN2 13
-#define MOTOR_B_IN1 26  // Define pins for Motor B
+#define MOTOR_B_IN1 26
 #define MOTOR_B_IN2 27
 
-// PWM properties
-#define PWM_FREQ 5000
-#define PWM_RESOLUTION 8
-#define PWM_MAX 255
+// PWM Settings
+const int PWM_FREQ = 5000;  // 5KHz
+const int PWM_RES = 8;       // 8-bit resolution (0-255)
+const int PWM_CH_A1 = 0;     // LEDC Channel 0
+const int PWM_CH_A2 = 1;     // LEDC Channel 1
+const int PWM_CH_B1 = 2;     // LEDC Channel 2
+const int PWM_CH_B2 = 3;     // LEDC Channel 3
 
-// PWM Channels
-#define PWM_CHANNEL_A_IN1 0
-#define PWM_CHANNEL_A_IN2 1
-#define PWM_CHANNEL_B_IN1 2
-#define PWM_CHANNEL_B_IN2 3
+// Gamepad object
+GamepadPtr myGamepad;
 
-// Control parameters
-#define DEADZONE 30       // Deadzone threshold for joystick
-#define TURN_FACTOR 1.2   // Factor to amplify turning
-#define MIN_DELAY 20      // Minimum loop delay in ms
+// ----------------------
+// Deklarasi fungsi callback
+// ----------------------
+void onGamepadConnected(GamepadPtr gp);
+void onGamepadDisconnected(GamepadPtr gp);
 
-ControllerPtr myControllers[BP32_MAX_GAMEPADS];
-
-void setupMotors() {
-  // Configure PWM for all motor pins
-  ledcSetup(PWM_CHANNEL_A_IN1, PWM_FREQ, PWM_RESOLUTION);
-  ledcSetup(PWM_CHANNEL_A_IN2, PWM_FREQ, PWM_RESOLUTION);
-  ledcSetup(PWM_CHANNEL_B_IN1, PWM_FREQ, PWM_RESOLUTION);
-  ledcSetup(PWM_CHANNEL_B_IN2, PWM_FREQ, PWM_RESOLUTION);
-  
-  // Attach pins to PWM channels
-  ledcAttachPin(MOTOR_A_IN1, PWM_CHANNEL_A_IN1);
-  ledcAttachPin(MOTOR_A_IN2, PWM_CHANNEL_A_IN2);
-  ledcAttachPin(MOTOR_B_IN1, PWM_CHANNEL_B_IN1);
-  ledcAttachPin(MOTOR_B_IN2, PWM_CHANNEL_B_IN2);
-  
-  stopMotors();
-}
-
-void stopMotors() {
-  ledcWrite(PWM_CHANNEL_A_IN1, 0);
-  ledcWrite(PWM_CHANNEL_A_IN2, 0);
-  ledcWrite(PWM_CHANNEL_B_IN1, 0);
-  ledcWrite(PWM_CHANNEL_B_IN2, 0);
-}
-
-void setMotorA(int speed) {
-  speed = constrain(speed, -PWM_MAX, PWM_MAX);
-  if (speed > 0) {
-    ledcWrite(PWM_CHANNEL_A_IN1, speed);
-    ledcWrite(PWM_CHANNEL_A_IN2, 0);
-  } else if (speed < 0) {
-    ledcWrite(PWM_CHANNEL_A_IN1, 0);
-    ledcWrite(PWM_CHANNEL_A_IN2, -speed);
-  } else {
-    ledcWrite(PWM_CHANNEL_A_IN1, 0);
-    ledcWrite(PWM_CHANNEL_A_IN2, 0);
-  }
-}
-
-void setMotorB(int speed) {
-  speed = constrain(speed, -PWM_MAX, PWM_MAX);
-  if (speed > 0) {
-    ledcWrite(PWM_CHANNEL_B_IN1, speed);
-    ledcWrite(PWM_CHANNEL_B_IN2, 0);
-  } else if (speed < 0) {
-    ledcWrite(PWM_CHANNEL_B_IN1, 0);
-    ledcWrite(PWM_CHANNEL_B_IN2, -speed);
-  } else {
-    ledcWrite(PWM_CHANNEL_B_IN1, 0);
-    ledcWrite(PWM_CHANNEL_B_IN2, 0);
-  }
-}
-
-void setMotors(int speedA, int speedB) {
-  setMotorA(speedA);
-  setMotorB(speedB);
-}
-
-void onConnectedController(ControllerPtr ctl) {
-    bool foundEmptySlot = false;
-    for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
-        if (myControllers[i] == nullptr) {
-            Serial.printf("Controller connected, index=%d\n", i);
-            myControllers[i] = ctl;
-            foundEmptySlot = true;
-            break;
-        }
-    }
-    if (!foundEmptySlot) {
-        Serial.println("No available slot for controller");
-    }
-}
-
-void onDisconnectedController(ControllerPtr ctl) {
-    for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
-        if (myControllers[i] == ctl) {
-            Serial.printf("Controller disconnected from index=%d\n", i);
-            myControllers[i] = nullptr;
-            stopMotors();
-            break;
-        }
-    }
-}
-
-void processGamepad(ControllerPtr ctl) {
-    // Get and filter joystick values
-    int leftStickY = applyDeadzone(ctl->axisY());
-    int leftStickX = applyDeadzone(ctl->axisX());
-    
-    // Map joystick values to motor speeds with proper scaling
-    int drive = -map(leftStickY, -512, 511, -255, 255);
-    int turn = map(leftStickX, -512, 511, -255, 255) * TURN_FACTOR;
-    turn = constrain(turn, -255, 255);
-    
-    // Improved motor mixing with scaling
-    int motorSpeedA = drive + turn;
-    int motorSpeedB = drive - turn;
-    
-    // Scale speeds to maintain ratio if any exceeds max
-    int maxSpeed = max(abs(motorSpeedA), abs(motorSpeedB));
-    if (maxSpeed > PWM_MAX) {
-        float scale = (float)PWM_MAX / maxSpeed;
-        motorSpeedA *= scale;
-        motorSpeedB *= scale;
-    }
-    
-    setMotors(motorSpeedA, motorSpeedB);
-    
-    // Emergency stop with Y button
-    if (ctl->y()) {
-      stopMotors();
-      Serial.println("Emergency Stop!");
-    }
-    
-    // Debug output
-    Serial.printf("LX: %4d, LY: %4d | A: %4d, B: %4d\n", 
-                  leftStickX, leftStickY, motorSpeedA, motorSpeedB);
-}
-
-int applyDeadzone(int value) {
-    if (abs(value) < DEADZONE) {
-        return 0;
-    }
-    return value;
-}
-
-void processControllers() {
-    bool anyControllerActive = false;
-    
-    for (auto myController : myControllers) {
-        if (myController && myController->isConnected()) {
-            anyControllerActive = true;
-            
-            if (myController->hasData() && myController->isGamepad()) {
-                processGamepad(myController);
-            }
-        }
-    }
-    
-    if (!anyControllerActive) {
-        stopMotors();
-    }
-}
-
+// ----------------------
+// Setup
+// ----------------------
 void setup() {
-    Serial.begin(115200);
-    Serial.printf("Firmware: %s\n", BP32.firmwareVersion());
-    
-    BP32.setup(&onConnectedController, &onDisconnectedController);
-    setupMotors();
-    
-    Serial.println("Mini Car with ESP32 and MX1508 initialized!");
+  Serial.begin(115200);
+  
+  // Configure motor PWM channels
+  ledcSetup(PWM_CH_A1, PWM_FREQ, PWM_RES);
+  ledcSetup(PWM_CH_A2, PWM_FREQ, PWM_RES);
+  ledcSetup(PWM_CH_B1, PWM_FREQ, PWM_RES);
+  ledcSetup(PWM_CH_B2, PWM_FREQ, PWM_RES);
+  
+  // Attach PWM channels to motor pins
+  ledcAttachPin(MOTOR_A_IN1, PWM_CH_A1);
+  ledcAttachPin(MOTOR_A_IN2, PWM_CH_A2);
+  ledcAttachPin(MOTOR_B_IN1, PWM_CH_B1);
+  ledcAttachPin(MOTOR_B_IN2, PWM_CH_B2);
+
+  BP32.setup(&onGamepadConnected, &onGamepadDisconnected);
+  Serial.println("Setup selesai. Menunggu PS4 Controller...");
 }
 
+// ----------------------
+// Loop utama
+// ----------------------
 void loop() {
-    BP32.update();
-    processControllers();
-    delay(MIN_DELAY);
+  BP32.update();
+
+  if (myGamepad && myGamepad->isConnected()) {
+    handleGamepadInput(myGamepad);
+  }
+}
+
+// ----------------------
+// Callbacks
+// ----------------------
+void onGamepadConnected(GamepadPtr gp) {
+  Serial.println("PS4 controller terhubung!");
+  myGamepad = gp;
+}
+
+void onGamepadDisconnected(GamepadPtr gp) {
+  Serial.println("PS4 controller terputus!");
+  if (myGamepad == gp) {
+    myGamepad = nullptr;
+    stopAll();
+  }
+}
+
+// ----------------------
+// Motor Control Functions
+// ----------------------
+void setMotorSpeed(int motor, int speed) {
+  speed = constrain(speed, -255, 255);  // Limit speed to -255 to 255
+  
+  if (motor == 0) {  // Motor A
+    if (speed > 0) {
+      ledcWrite(PWM_CH_A1, speed);
+      ledcWrite(PWM_CH_A2, 0);
+    } else if (speed < 0) {
+      ledcWrite(PWM_CH_A1, 0);
+      ledcWrite(PWM_CH_A2, -speed);
+    } else {
+      ledcWrite(PWM_CH_A1, 0);
+      ledcWrite(PWM_CH_A2, 0);
+    }
+  } else if (motor == 1) {  // Motor B
+    if (speed > 0) {
+      ledcWrite(PWM_CH_B1, speed);
+      ledcWrite(PWM_CH_B2, 0);
+    } else if (speed < 0) {
+      ledcWrite(PWM_CH_B1, 0);
+      ledcWrite(PWM_CH_B2, -speed);
+    } else {
+      ledcWrite(PWM_CH_B1, 0);
+      ledcWrite(PWM_CH_B2, 0);
+    }
+  }
+}
+
+// ----------------------
+// Gamepad Input Handling
+// ----------------------
+void handleGamepadInput(GamepadPtr gp) {
+  int8_t ly = gp->axisY();  // Vertikal: -128 (atas) ke 127 (bawah)
+  int8_t lx = gp->axisX();  // Horisontal: -128 (kiri) ke 127 (kanan)
+  const int threshold = 20; // Batas toleransi
+
+  if (abs(ly) > abs(lx)) {
+    if (ly < -threshold) {
+      // MAJU
+      setMotorSpeed(0, 255);
+      setMotorSpeed(1, 255);
+    } else if (ly > threshold) {
+      // MUNDUR
+      setMotorSpeed(0, -255);
+      setMotorSpeed(1, -255);
+    } else {
+      stopAll();
+    }
+  } else if (abs(lx) > threshold) {
+    if (lx > 0) {
+      // BELOK KANAN
+      setMotorSpeed(0, -255);
+      setMotorSpeed(1, 255);
+    } else {
+      // BELOK KIRI
+      setMotorSpeed(0, 255);
+      setMotorSpeed(1, -255);
+    }
+  } else {
+    stopAll();
+  }
+}
+
+// ----------------------
+// Stop All Motors
+// ----------------------
+void stopAll() {
+  setMotorSpeed(0, 0);
+  setMotorSpeed(1, 0);
 }
