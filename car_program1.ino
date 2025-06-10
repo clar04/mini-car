@@ -14,6 +14,10 @@ const int PWM_CH_LEFT2 = 1;
 const int PWM_CH_RIGHT1 = 2;
 const int PWM_CH_RIGHT2 = 3;
 
+// Inversi arah motor (atur true jika arah salah)
+const bool motorLeftInverted = false;
+const bool motorRightInverted = true;
+
 GamepadPtr myGamepad;
 
 void setup() {
@@ -62,28 +66,15 @@ void stopMotors() {
 void setMotorSpeed(int motor, int speed) {
   speed = constrain(speed, -255, 255);
 
+  bool inverted = (motor == 0) ? motorLeftInverted : motorRightInverted;
+  if (inverted) speed = -speed;
+
   if (motor == 0) {
-    if (speed > 0) {
-      ledcWrite(PWM_CH_LEFT1, speed);
-      ledcWrite(PWM_CH_LEFT2, 0);
-    } else if (speed < 0) {
-      ledcWrite(PWM_CH_LEFT1, 0);
-      ledcWrite(PWM_CH_LEFT2, -speed);
-    } else {
-      ledcWrite(PWM_CH_LEFT1, 0);
-      ledcWrite(PWM_CH_LEFT2, 0);
-    }
+    ledcWrite(PWM_CH_LEFT1, speed > 0 ? speed : 0);
+    ledcWrite(PWM_CH_LEFT2, speed < 0 ? -speed : 0);
   } else if (motor == 1) {
-    if (speed > 0) {
-      ledcWrite(PWM_CH_RIGHT1, speed);
-      ledcWrite(PWM_CH_RIGHT2, 0);
-    } else if (speed < 0) {
-      ledcWrite(PWM_CH_RIGHT1, 0);
-      ledcWrite(PWM_CH_RIGHT2, -speed);
-    } else {
-      ledcWrite(PWM_CH_RIGHT1, 0);
-      ledcWrite(PWM_CH_RIGHT2, 0);
-    }
+    ledcWrite(PWM_CH_RIGHT1, speed > 0 ? speed : 0);
+    ledcWrite(PWM_CH_RIGHT2, speed < 0 ? -speed : 0);
   }
 }
 
@@ -92,29 +83,40 @@ void handleGamepadInput(GamepadPtr gp) {
   int8_t lx = gp->axisX();  // -128 (kiri) ke 127 (kanan)
   const int threshold = 20;
 
+  float scale = 0.5;
+  int maxSpeed = 255 * scale;
+
+  Serial.print("LY: ");
+  Serial.print(ly);
+  Serial.print(" | LX: ");
+  Serial.print(lx);
+  Serial.print(" | Arah: ");
+
   if (abs(ly) < threshold && abs(lx) < threshold) {
+    Serial.println("Diam");
     stopMotors();
     return;
   }
 
-  // Dibalik: atas = mundur, bawah = maju
   if (abs(ly) > abs(lx)) {
     if (ly < -threshold) {
-      // SEHARUSNYA MAJU, SEKARANG JADI MUNDUR
-      setMotorSpeed(0, -255);
-      setMotorSpeed(1, -255);
+      Serial.println("Maju");
+      setMotorSpeed(0, maxSpeed);
+      setMotorSpeed(1, maxSpeed);
     } else if (ly > threshold) {
-      // SEHARUSNYA MUNDUR, SEKARANG JADI MAJU
-      setMotorSpeed(0, 255);
-      setMotorSpeed(1, 255);
+      Serial.println("Mundur");
+      setMotorSpeed(0, -maxSpeed);
+      setMotorSpeed(1, -maxSpeed);
     }
   } else {
     if (lx > threshold) {
-      setMotorSpeed(0, 255);
-      setMotorSpeed(1, -255);
+      Serial.println("Belok Kanan");
+      setMotorSpeed(0, maxSpeed);
+      setMotorSpeed(1, -maxSpeed);
     } else if (lx < -threshold) {
-      setMotorSpeed(0, -255);
-      setMotorSpeed(1, 255);
+      Serial.println("Belok Kiri");
+      setMotorSpeed(0, -maxSpeed);
+      setMotorSpeed(1, maxSpeed);
     }
   }
 }
