@@ -92,31 +92,26 @@ void handleGamepadInput(GamepadPtr gp) {
   Serial.print(lx);
   Serial.print(" | Arah: ");
 
-  if (abs(ly) < threshold && abs(lx) < threshold) {
+  // Gunakan logika dari code yang kamu minta
+  if (ly == 4 && abs(lx) > 20) {
+    Serial.println("Maju");
+    setMotorSpeed(0, maxSpeed);
+    setMotorSpeed(1, maxSpeed);
+  } else if (ly == 0 && abs(lx) > 20) {
+    Serial.println("Mundur");
+    setMotorSpeed(0, -maxSpeed);
+    setMotorSpeed(1, -maxSpeed);
+  } else if (abs(ly) > 20 && lx == 4) {
+    Serial.println("Kiri");
+    setMotorSpeed(0, -maxSpeed);
+    setMotorSpeed(1, maxSpeed);
+  } else if (abs(ly) > 20 && lx == 0) {
+    Serial.println("Kanan");
+    setMotorSpeed(0, maxSpeed);
+    setMotorSpeed(1, -maxSpeed);
+  } else {
     Serial.println("Diam");
     stopMotors();
-    return;
-  }
-
-  if (abs(ly) > abs(lx)) {
-    if (ly < -threshold) {
-      Serial.println("Maju");
-      setMotorSpeed(0, maxSpeed);
-      setMotorSpeed(1, maxSpeed);
-    } else if (ly > threshold) {
-      Serial.println("Mundur");
-      setMotorSpeed(0, -maxSpeed);
-      setMotorSpeed(1, -maxSpeed);
-    }
-  } else {
-    if (lx > threshold) {
-      Serial.println("Belok Kanan");
-      setMotorSpeed(0, maxSpeed);
-      setMotorSpeed(1, -maxSpeed);
-    } else if (lx < -threshold) {
-      Serial.println("Belok Kiri");
-      setMotorSpeed(0, -maxSpeed);
-      setMotorSpeed(1, maxSpeed);
-    }
   }
 }
+
