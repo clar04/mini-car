@@ -24,16 +24,16 @@ Cabut kabel dari controller.
 Nyalakan controller dan tunggu beberapa saat hingga controller terhubung secara nirkabel ke ESP32.
 
 
-3. 🔋 Nyalakan Mobil
+2. 🔋 Nyalakan Mobil
 Pastikan baterai sudah terpasang dengan daya yang cukup.
 Geser saklar daya ke posisi ON untuk mengaktifkan mobil.
 
-4. 🎮 Hubungkan PS4 Controller ke Mobil
+3. 🎮 Hubungkan PS4 Controller ke Mobil
 Tekan tombol PS pada controller hingga lampu indikator berkedip.
 Tunggu beberapa detik hingga controller terhubung ke mobil.
 Jika berhasil, mobil siap menerima perintah.
 
-6. 🕹️ Kendali Gerak Mobil
+4. 🕹️ Kendali Gerak Mobil
 Gunakan analog kiri pada PS4 Controller untuk mengendalikan mobil
 ✅ Tips: Gerakan mobil akan lebih responsif jika analog ditekan penuh ke arah tertentu.
 
