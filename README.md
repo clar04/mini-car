@@ -9,7 +9,7 @@ Panduan ini ditujukan untuk membantu pengguna dalam mengoperasikan mobil Car Rac
 1. 💻 Persiapan Awal
    
 a. Instalasi SixaxisPair Tool
-Unduh dan instal SixaxisPair Tool di laptop/komputer Anda.
+Unduh dan instal SixaxisPair Tool https://sixaxispairtool.en.lo4d.com/windows di laptop/komputer Anda.
 
 b. Upload Kode ke ESP32
 Buka Arduino IDE dan upload kode kendali ke board ESP32. Setelah kode berhasil dijalankan, salin MAC Address yang muncul di output serial monitor.
